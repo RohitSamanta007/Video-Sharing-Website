@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1757578845120,
+      "tag": "0000_right_the_professor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1757579387041,
+      "tag": "0001_loud_junta",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1757600577609,
+      "tag": "0002_wooden_nitro",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1757601075815,
+      "tag": "0003_faithful_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1757828284782,
+      "tag": "0004_elite_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1757842588142,
+      "tag": "0005_loud_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1757866896234,
+      "tag": "0006_lush_meltdown",
+      "breakpoints": true
+    }
+  ]
+}
