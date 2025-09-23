@@ -2,12 +2,14 @@ import { toast } from "react-toastify";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { FileRejection } from "react-dropzone";
-import { FileType } from "@/components/post/upload-post-form";
+import { FileType, PostValues } from "@/components/post/upload-post-form";
+import { UseFormReturn } from "react-hook-form";
 
 export async function removeScreenshotFile(
   files: FileType[],
   setFiles: React.Dispatch<React.SetStateAction<FileType[]>>,
-  fileId: string
+  fileId: string,
+  form: UseFormReturn<PostValues>
 ) {
   try {
     const fileToRemove = files.find((f) => f.id === fileId);
@@ -22,22 +24,25 @@ export async function removeScreenshotFile(
       prevFile.map((f) => (f.id === fileId ? { ...f, isDeleting: true } : f))
     );
 
-    const response = await fetch("/api/s3/delete", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: fileToRemove?.key }),
-    });
+    if (fileToRemove?.key) {
+      const response = await fetch("/api/s3/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: fileToRemove.key }),
+      });
 
-    if (!response.ok) {
-      toast.error("Failed to remove file from storage");
-      setFiles((prevFile) =>
-        prevFile.map((f) =>
-          f.id === fileId ? { ...f, isDeleting: false, error: true } : f
-        )
-      );
-      return;
+      if (!response.ok) {
+        toast.error("Failed to remove file from storage");
+        setFiles((prevFile) =>
+          prevFile.map((f) =>
+            f.id === fileId ? { ...f, isDeleting: false, error: true } : f
+          )
+        );
+        return;
+      }
     }
 
+    form.setValue("screenshotImages", files.filter((f) => f.id !==fileId).map((f)=> f.file!));
     setFiles((prevFile) => prevFile.filter((f) => f.id !== fileId));
     toast.success("File remove successfully");
   } catch (error) {
@@ -52,7 +57,7 @@ export async function removeScreenshotFile(
 
 export async function uploadScreenshotsFile(
   setFiles: React.Dispatch<React.SetStateAction<FileType[]>>,
-  file: File,
+  file: File
 ) {
   setFiles((prevFiles) =>
     prevFiles.map((f) => (f.file === file ? { ...f, uploading: true } : f))
@@ -60,6 +65,11 @@ export async function uploadScreenshotsFile(
 
   try {
     const uniqueKey = `screenshots/${file.name}-${uuidv4()}`;
+    setFiles((prevFiles) =>
+      prevFiles.map((f) =>
+        f.file === file ? { ...f, key: uniqueKey, uploading: true } : f
+      )
+    );
     // get presigned url
     const presignedResponse = await fetch("/api/s3/upload", {
       method: "POST",
@@ -98,7 +108,11 @@ export async function uploadScreenshotsFile(
           setFiles((prevFile) =>
             prevFile.map((f) =>
               f.file === file
-                ? { ...f, progress: Math.round(percentComplete), key: key }
+                ? {
+                    ...f,
+                    progress: Math.round(percentComplete),
+                    key: key,
+                  }
                 : f
             )
           );
@@ -131,6 +145,8 @@ export async function uploadScreenshotsFile(
       xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
     });
+
+    return key;
   } catch (error) {
     console.log("Error in upload file : ", error);
     toast.error("Something went wrong");
@@ -142,6 +158,7 @@ export async function uploadScreenshotsFile(
           : f
       )
     );
+    throw error;
   }
 }
 
@@ -149,28 +166,27 @@ export const onScreenshotsFileDrop = (
   acceptedFiles: File[],
   setFiles: React.Dispatch<React.SetStateAction<FileType[]>>
 ) => {
-  if (acceptedFiles.length) {
-    setFiles((prevFiles) => [
-      ...prevFiles,
-      ...acceptedFiles.map((file) => ({
-        id: uuidv4(),
-        file,
-        uploading: false,
-        progress: 0,
-        isDeleting: false,
-        error: false,
-        objectUrl: URL.createObjectURL(file),
-        isSubmmited: false,
-      })),
-    ]);
-  }
+  console.log("File drop funcion called");
+  const newFiles = acceptedFiles.map((file) => {
+    const id = uuidv4();
+    return {
+      id,
+      file,
+      uploading: false,
+      progress: 0,
+      isDeleting: false,
+      error: false,
+      objectUrl: URL.createObjectURL(file),
+      isSubmmited: false,
+      isDeleted: false,
+    };
+  });
 
-  // acceptedFiles.forEach((file) =>
-  //   uploadScreenshotsFile(setFiles, file, "vidme-screenshots-images")
-  // );
+  setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+
 };
 
-export const rejectedScreenshotsFiles =(fileRejection: FileRejection[]) => {
+export const rejectedScreenshotsFiles = (fileRejection: FileRejection[]) => {
   if (fileRejection.length) {
     const tooManyFiles = fileRejection.find(
       (rejection) => rejection.errors[0].code === "too-many-files"

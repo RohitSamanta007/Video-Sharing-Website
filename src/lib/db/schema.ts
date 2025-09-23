@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, serial, uuid, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, serial, uuid, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -79,14 +79,19 @@ export const post = pgTable("post", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   videoUrl: text("videoUrl").notNull(),
-  videoKey: text("videoKey").notNull(),
-  imageUrl: text("imageUrl").notNull(),
-  imageKey: text("imageKey").notNull(),
+  videoKey: text("videoKey").default(""),
+  thumbnailUrl: text("imageUrl").notNull(),
+  thumbnailKey: text("imageKey").notNull(),
+  screenshotUrls: text("screenshotUrls").array().notNull().default([]),
+  screenshotKeys: text("screenshotKeys").array().notNull().default([]),
   isPublic: boolean("isPublic").default(false),
-  isPending: boolean("isPublic").default(true),
+  isPending: boolean("isPending").default(true),
   createdAt: timestamp("createdAt").$defaultFn(()=> new Date()), 
-  updatedAt: timestamp("createdAt").$defaultFn(()=> new Date()), 
-})
+  updatedAt: timestamp("updatedAt").$defaultFn(()=> new Date()), 
+}, (table) =>  [
+  uniqueIndex("slugIndex").on(table.slug),
+
+] )
 
 // post and category has many to many relations : one post - multiple category and one category can be with multiple post
 export const postCategory = pgTable("postCategory", {
@@ -96,7 +101,8 @@ export const postCategory = pgTable("postCategory", {
 
 // relation of post, category and post category
 export const postRelations = relations(post, ({many}) => ({
-  categories: many(postCategory)
+  categories: many(postCategory),
+  savedVideo: many(savedVideoTable),
 }))
 
 export const categoryRealtions = relations(category, ({many}) =>({
@@ -113,3 +119,10 @@ export const postCategoryRelations = relations(postCategory, ({one}) =>({
     references: [category.id],
   })
 }))
+
+// saved video table
+export const savedVideoTable = pgTable("savedVideo",{
+  userId: text("userId").notNull().references(() => user.id, {onDelete: "cascade"}),
+  postId: uuid("postId").notNull().references(()=> post.id, {onDelete: "cascade"}),
+  createdAt: timestamp("createdAt").notNull().$defaultFn(()=> new Date()),
+})

@@ -1,0 +1,1 @@
+ALTER TABLE "savedVideo" ALTER COLUMN "createdAt" SET NOT NULL;

@@ -2,51 +2,72 @@ import { toast } from "react-toastify";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { FileRejection } from "react-dropzone";
-import { FileType } from "@/components/post/upload-post-form";
+import { FileType, PostValues } from "@/components/post/upload-post-form";
+import { UseFormReturn } from "react-hook-form";
 
 export async function removeVideoFile(
   fileToRemove: FileType,
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>
+  setFile: React.Dispatch<React.SetStateAction<FileType>>,
+  form: UseFormReturn<PostValues>
 ) {
   try {
-    if (fileToRemove) {
-      if (fileToRemove.objectUrl) {
-        URL.revokeObjectURL(fileToRemove.objectUrl);
+    // setFile((prevFile) => ({ ...prevFile, isDeleting: true }));
+    setFile({...fileToRemove, isDeleting: true});
+
+    if (fileToRemove.key) {
+      const response = await fetch("/api/s3/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: fileToRemove.key }),
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to remove file from storage");
+        // setFile(
+        //   (prevFile) =>
+        //     prevFile && { ...prevFile, isDeleting: false, error: true }
+        // );
+        setFile((prevFile) => ({
+          ...prevFile,
+          isDeleting: false,
+          error: true,
+        }));
+        return;
       }
     }
 
-    setFile((prevFile) => prevFile && { ...prevFile, isDeleting: true });
-
-    const response = await fetch("/api/s3/delete", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: fileToRemove?.key }),
-    });
-
-    if (!response.ok) {
-      toast.error("Failed to remove file from storage");
-      setFile(
-        (prevFile) =>
-          prevFile && { ...prevFile, isDeleting: false, error: true }
-      );
-      return;
+    if (fileToRemove.objectUrl) {
+      URL.revokeObjectURL(fileToRemove.objectUrl);
     }
 
-    setFile(null);
+    setFile({
+      id: "",
+      file: undefined,
+      uploading: false,
+      progress: 0,
+      isDeleting: false,
+      error: false,
+      isSubmmited: false,
+      isDeleted: true,
+    });
+
+    form.resetField("videoFile");
     toast.success("File remove successfully");
   } catch (error) {
     toast.error("Failed to remove file from storage");
-    setFile(
-      (prevFile) => prevFile && { ...prevFile, isDeleting: false, error: true }
-    );
+    // setFile(
+    //   (prevFile) => ({ ...prevFile, isDeleting: false, error: true })
+    // );
+
+    setFile({...fileToRemove, isDeleting: false, error: true})
   }
 }
 
 export async function uploadVideoFile(
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>,
+  setFile: React.Dispatch<React.SetStateAction<FileType>>,
   file: File
 ) {
-  setFile((prevFile) => prevFile && { ...prevFile, uploading: true });
+  setFile((prevFile) => ({ ...prevFile, uploading: true }));
 
   try {
     const uniqueKey = `videos/${file.name}-${uuidv4()}`;
@@ -63,15 +84,12 @@ export async function uploadVideoFile(
 
     if (!presignedResponse.ok) {
       toast.error("Failed to get presigned URL");
-      setFile(
-        (prevFile) =>
-          prevFile && {
-            ...prevFile,
-            uploading: false,
-            progress: 0,
-            error: true,
-          }
-      );
+      setFile((prevFile) => ({
+        ...prevFile,
+        uploading: false,
+        progress: 0,
+        error: true,
+      }));
       return;
     }
 
@@ -94,13 +112,11 @@ export async function uploadVideoFile(
           //       : f
           //   )
           // );
-          setFile(
-            (prevFile) =>
-              prevFile && {
-                ...prevFile,
-                progress: Math.round(percentComplete),
-                key: key,
-              }
+          setFile((prevFile) => ({
+            ...prevFile,
+            key: uniqueKey,
+            progress: Math.round(percentComplete),
+          })
           );
         }
       };
@@ -118,12 +134,13 @@ export async function uploadVideoFile(
 
           setFile(
             (prevFile) =>
-              prevFile && {
+               ({
                 ...prevFile,
                 uploading: false,
                 progress: 100,
                 error: false,
-              }
+                key: uniqueKey,
+              })
           );
 
           toast.success("File uploaded successfully");
@@ -141,6 +158,8 @@ export async function uploadVideoFile(
       xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
     });
+
+    return key;
   } catch (error) {
     console.log("Error in upload file : ", error);
     toast.error("Something went wrong");
@@ -155,14 +174,15 @@ export async function uploadVideoFile(
 
     setFile(
       (prevFile) =>
-        prevFile && { ...prevFile, uploading: false, progress: 0, error: true }
+         ({ ...prevFile, uploading: false, progress: 0, error: true })
     );
+    throw error;
   }
 }
 
 export const onVideoFileDrop = (
   acceptedFiles: File[],
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>
+  setFile: React.Dispatch<React.SetStateAction<FileType>>
 ) => {
   if (acceptedFiles.length) {
     setFile({
@@ -174,6 +194,7 @@ export const onVideoFileDrop = (
       error: false,
       objectUrl: URL.createObjectURL(acceptedFiles[0]),
       isSubmmited: false,
+      isDeleted: false,
     });
   }
   // uploadVideoFile(setFile, acceptedFiles[0]);

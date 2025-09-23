@@ -1,9 +1,8 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
-import { v4 as uuidv4 } from "uuid";
 import {
   Form,
   FormControl,
@@ -21,18 +20,10 @@ import {
   SelectValue,
   SelectContent,
 } from "../ui/select";
-import {
-  Cross,
-  CrossIcon,
-  FileSignature,
-  Loader2,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Loader2, Trash2, X } from "lucide-react";
 import Image from "next/image";
-import { Progress } from "../ui/progress";
 import { toast } from "react-toastify";
-import Dropzone, { FileRejection } from "react-dropzone";
+import Dropzone from "react-dropzone";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 
@@ -48,12 +39,9 @@ import {
   onThumbnailFileDrop,
   rejectedThumbnailFiles,
 } from "@/file-input-upload-handler/thumbnail-handler";
-import {
-  removeVideoFile,
-  uploadVideoFile,
-  onVideoFileDrop,
-  rejectedVideoFiles,
-} from "@/file-input-upload-handler/video-handler";
+import { Checkbox } from "../ui/checkbox";
+import { addNewPost } from "@/actions/admin-actions";
+import { useRouter } from "next/navigation";
 
 export const postSchema = z.object({
   title: z
@@ -72,40 +60,34 @@ export const postSchema = z.object({
     .refine(
       (file) => file.type.startsWith("image/"),
       "Only image files are allowed"
-    )
-    .refine((file: File) => file.size <= 10 * 1024 * 1024, {
-      message: "Each file must be less than (10Mb)",
-    }),
-  screenshotImages: z
-    .array(
-      z
-        .instanceof(File)
-        .refine((file: File) => file.type.startsWith("image/"), {
-          message: "Only image files are allowed",
-        })
-        .refine((file: File) => file.size <= 10 * 1024 * 1024, {
-          message: "Each file must be less than (10Mb)",
-        })
-    )
-    .optional(),
-  videoFile: z
-    .instanceof(File, { message: "File is required" })
-    .refine(
-      (file) => file.type.startsWith("video/"),
-      "Only image files are allowed"
-    )
-    .refine(
-      (file) => file.size <= 100 * 1024 * 1024, // 5MB limit
-      "File size must be less than 5MB"
     ),
+  screenshotImages: z.array(
+    z
+      .instanceof(File)
+      .refine((file: File) => file.type.startsWith("image/"), {
+        message: "Only image files are allowed",
+      })
+      .refine((file: File) => file.size <= 10 * 1024 * 1024, {
+        message: "Each file must be less than (10Mb)",
+      })
+  ),
+  // videoFile: z
+  //   .instanceof(File, { message: "File is required" })
+  //   .refine(
+  //     (file) => file.type.startsWith("video/"),
+  //     "Only image files are allowed"
+  //   ),
+  videoUrl: z.string().min(1, "You must provide video url to submit."),
+  videoKey: z.string().min(1, "You must provide video key to submit."),
+
   isPublic: z.boolean().optional(),
 });
 
-type PostValues = z.infer<typeof postSchema>;
+export type PostValues = z.infer<typeof postSchema>;
 
 export interface FileType {
-  id?: string;
-  file: File | null;
+  id: string;
+  file?: File;
   uploading: boolean;
   progress: number;
   key?: string;
@@ -113,13 +95,31 @@ export interface FileType {
   error: boolean;
   objectUrl?: string;
   isSubmmited: boolean;
+  isDeleted: boolean;
 }
 
-function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
-  const [isSubmitted, setIsSubmitted] = useState(false);
+function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryProps[], post?:EditPagePostsProps, isEditing?:boolean }) {
+  const router = useRouter();
 
-  const [thumbnailFile, setThumbnailFile] = useState<FileType | null>(null);
-  const [videoFile, setVideoFile] = useState<FileType | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<FileType>({
+    id: "",
+    uploading: false,
+    progress: 0,
+    isDeleting: false,
+    error: false,
+    isSubmmited: false,
+    isDeleted: false,
+    
+  });
+  // const [videoFile, setVideoFile] = useState<FileType>({
+  //   id: "",
+  //   uploading: false,
+  //   progress: 0,
+  //   isDeleting: false,
+  //   error: false,
+  //   isSubmmited: false,
+  //   isDeleted: false,
+  // });
   const [screenShotsFile, setScreenshotsFile] = useState<FileType[]>([]);
 
   const form = useForm<PostValues>({
@@ -129,9 +129,11 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
       description: "",
       categoryIds: [],
       thumbnailImage: undefined,
-      videoFile: undefined,
+      // videoFile: undefined,
       isPublic: true,
       screenshotImages: [],
+      videoUrl: "",
+      videoKey: "",
     },
   });
 
@@ -139,43 +141,107 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
     console.log("The value of the submitted form is : ", values);
 
     try {
-      
-      uploadThumbnailFile(setThumbnailFile, thumbnailFile?.file||values.thumbnailImage)
-      // screenShotsFile?.map((file) => uploadScreenshotsFile(setScreenshotsFile, file!))
-      uploadVideoFile(setVideoFile, values.videoFile)
+      const thumbnailkey: string = await uploadThumbnailFile(
+        setThumbnailFile,
+        values.thumbnailImage
+      );
+      console.log("The value of thumbnailKey is : ", thumbnailkey);
 
+      const screenshotsKeys = await Promise.all(
+        values.screenshotImages.map((file) =>
+          uploadScreenshotsFile(setScreenshotsFile, file)
+        )
+      );
+      console.log("All uploaded Screenshotes keys:", screenshotsKeys);
+
+      // const videokey = await uploadVideoFile(setVideoFile, values.videoFile);
+      // console.log("The value of videokey is : ", videokey)
+
+      console.log("all file uploaded successfully");
+
+      const payload = {
+        title: values.title,
+        description: values.description,
+        categoryIds: values.categoryIds,
+        videoKey: values.videoKey,
+        videoUrl: values.videoUrl,
+        thumbnailKey: thumbnailkey,
+        screenshotKeys: screenshotsKeys,
+        isPublic: values.isPublic,
+      };
+
+      const result = await addNewPost(payload);
+      if (result.success) {
+        toast("Post Added Successfully");
+        setTimeout(() => router.push(`/post/${result.slug}`), 2000);
+      } else {
+        toast.error(result.message);
+
+        await removeThumbnailFile(thumbnailFile, setThumbnailFile, form);
+        await Promise.all(
+          screenShotsFile.map((file) =>
+            removeScreenshotFile(
+              screenShotsFile,
+              setScreenshotsFile,
+              file.id,
+              form
+            )
+          )
+        );
+      }
+
+      console.log("The vlaue of result is : ", result);
     } catch (error) {
       console.log("Error in Form Submit : ", error);
-      toast.error("Something went wrong")
+      toast.error("Something went wrong");
+
+      // delete uploaded files
+      await fetch("/api/s3/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: thumbnailFile.key }),
+      });
+      await Promise.all(
+        screenShotsFile.map((file) =>
+          fetch("/api/s3/delete", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: file.key }),
+          })
+        )
+      );
+    } finally {
+      form.reset();
+      setThumbnailFile({
+        id: "",
+        uploading: false,
+        progress: 0,
+        isDeleting: false,
+        error: false,
+        isSubmmited: false,
+        isDeleted: false,
+      });
+      // setVideoFile({
+      //   id: "",
+      //   uploading: false,
+      //   progress: 0,
+      //   isDeleting: false,
+      //   error: false,
+      //   isSubmmited: false,
+      //   isDeleted: false,
+      // });
+      setScreenshotsFile([]);
     }
   };
 
   const loading = form.formState.isSubmitting;
+  // const disabledButton =
+  //   thumbnailFile?.uploading ||
+  //   videoFile?.uploading ||
+  //   screenShotsFile.some((file) => file.uploading);
+
   const disabledButton =
-    thumbnailFile?.uploading ||
-    videoFile?.uploading ||
-    screenShotsFile.some((file) => file.uploading);
-
-  // useEffect(()=> {
-  //   return () =>{
-  //     // if(thumbnailFile?.objectUrl){
-  //     //   URL.revokeObjectURL(thumbnailFile.objectUrl)
-  //     // }
-
-  //     const cleanupImages = async() =>{
-  //       if (!thumbnailFile?.isSubmmited && thumbnailFile?.objectUrl) {
-  //         console.log("Non Submitted file deleted in useEffect.");
-  //         URL.revokeObjectURL(thumbnailFile.objectUrl);
-  //         await fetch("/api/s3/delete", {
-  //           method: "DELETE",
-  //           headers: { "Content-Type": "application/json" },
-  //           body: JSON.stringify({ key: thumbnailFile?.key }),
-  //         });
-  //       }
-  //     }
-  //     cleanupImages();
-  //   }
-  // }, [thumbnailFile])
+    thumbnailFile?.uploading || screenShotsFile.some((file) => file.uploading);
 
   return (
     <div>
@@ -220,6 +286,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
             )}
           />
 
+          {/* Categories selection  */}
           <FormField
             control={form.control}
             name="categoryIds"
@@ -300,7 +367,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                     maxFiles={1}
                     maxSize={10 * 1024 * 1024}
                     accept={{ "image/*": [] }}
-                    disabled={Boolean(thumbnailFile)}
+                    disabled={Boolean(thumbnailFile.file)}
                   >
                     {({ getRootProps, getInputProps, isDragActive }) => (
                       <div
@@ -316,7 +383,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                           <Input
                             type="file"
                             {...getInputProps()}
-                            disabled={Boolean(thumbnailFile)}
+                            disabled={Boolean(thumbnailFile.file)}
                           />
                           {isDragActive ? (
                             <p className="text-center">Drop the files here</p>
@@ -332,7 +399,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                   </Dropzone>
                 </FormControl>
 
-                {thumbnailFile && (
+                {thumbnailFile.file && (
                   <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="relative aspect-square rounded-md overflow-hidden">
@@ -345,13 +412,13 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                           variant={"destructive"}
                           size={"icon"}
                           className=" absolute top-2 right-2"
-                          onClick={() =>{
+                          onClick={() => {
                             removeThumbnailFile(
                               thumbnailFile!,
-                              setThumbnailFile
-                            )
-                          }
-                          }
+                              setThumbnailFile,
+                              form
+                            );
+                          }}
                           disabled={thumbnailFile.isDeleting}
                         >
                           {thumbnailFile.isDeleting ? (
@@ -390,7 +457,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
           <FormField
             control={form.control}
             name="screenshotImages"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>
                   Screenshots Image Files (optional) :{" "}
@@ -400,11 +467,16 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                 </FormLabel>
                 <FormControl>
                   <Dropzone
-                    onDrop={(acceptedFiles) =>{
-                      onScreenshotsFileDrop(acceptedFiles, setScreenshotsFile)
-                      form.setValue("screenshotImages", acceptedFiles)
-                    }
-                    }
+                    onDrop={(acceptedFiles) => {
+                      onScreenshotsFileDrop(acceptedFiles, setScreenshotsFile);
+                      // form.setValue("screenshotImages", acceptedFiles);
+                      const prevFiles =
+                        form.getValues("screenshotImages") || [];
+                      form.setValue("screenshotImages", [
+                        ...prevFiles,
+                        ...acceptedFiles,
+                      ]);
+                    }}
                     onDropRejected={rejectedScreenshotsFiles}
                     maxFiles={5}
                     maxSize={10 * 1024 * 1024}
@@ -463,7 +535,8 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                                 removeScreenshotFile(
                                   screenShotsFile,
                                   setScreenshotsFile,
-                                  id!
+                                  id!,
+                                  form
                                 )
                               }
                               disabled={isDeleting}
@@ -503,8 +576,8 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
             )}
           />
 
-          {/* Upload Video  */}
-          <FormField
+          {/* upload raw video  */}
+          {/* <FormField
             control={form.control}
             name="videoFile"
             render={() => (
@@ -517,16 +590,15 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                 </FormLabel>
                 <FormControl>
                   <Dropzone
-                    onDrop={(acceptedFiles) =>{
-                      onVideoFileDrop(acceptedFiles, setVideoFile)
+                    onDrop={(acceptedFiles) => {
+                      onVideoFileDrop(acceptedFiles, setVideoFile);
                       form.setValue("videoFile", acceptedFiles[0]);
-                    }
-                    }
+                    }}
                     onDropRejected={rejectedVideoFiles}
                     maxFiles={1}
                     maxSize={200 * 1024 * 1024}
                     accept={{ "video/*": [] }}
-                    disabled={Boolean(videoFile)}
+                    disabled={Boolean(videoFile.file)}
                   >
                     {({ getRootProps, getInputProps, isDragActive }) => (
                       <div
@@ -542,7 +614,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                           <Input
                             {...getInputProps()}
                             type="file"
-                            disabled={Boolean(videoFile)}
+                            disabled={Boolean(videoFile.file)}
                           />
                           {isDragActive ? (
                             <p className="text-center">Drop the files here</p>
@@ -558,15 +630,11 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                   </Dropzone>
                 </FormControl>
 
-                {videoFile && (
+                {videoFile.file && (
                   <div className="mt-2 grid grid-cols-1 mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="relative aspect-video rounded-md overflow-hidden w-full">
-                        {/* <img
-                          src={videoFile.objectUrl}
-                          alt={videoFile.file?.name}
-                          className="w-full h-full object-cover"
-                        /> */}
+                        
                         <video className="w-full h-full block" controls>
                           <source
                             src={videoFile.objectUrl}
@@ -578,7 +646,7 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                           size={"icon"}
                           className=" absolute top-2 right-2"
                           onClick={() =>
-                            removeVideoFile(videoFile!, setVideoFile)
+                            removeVideoFile(videoFile!, setVideoFile, form)
                           }
                           disabled={videoFile.isDeleting}
                         >
@@ -609,6 +677,61 @@ function UploadPostFrom({ categories }: { categories: CategoryProps[] }) {
                   </div>
                 )}
                 <FormMessage />
+              </FormItem>
+            )}
+          />  */}
+
+          {/* Input video Url  */}
+          <FormField
+            control={form.control}
+            name="videoUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-semibold">Video URL : </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter Video url"
+                    {...field}
+                    disabled={loading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="videoKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-semibold">AWS Video Key : </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter Video Key"
+                    {...field}
+                    disabled={loading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Ispublic checkbox input  */}
+          <FormField
+            control={form.control}
+            name="isPublic"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white dark:data-[state=checked]:border-blue-700 dark:data-[state=checked]:bg-blue-700 border-blue-500"
+                  />
+                </FormControl>
+                <FormLabel>Is Public</FormLabel>
               </FormItem>
             )}
           />

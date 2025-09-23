@@ -1,47 +1,62 @@
 import { toast } from "react-toastify";
-import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { FileRejection } from "react-dropzone";
-import { FileType } from "@/components/post/upload-post-form";
+import { FileType, PostValues } from "@/components/post/upload-post-form";
+import { UseFormReturn } from "react-hook-form";
 
 export async function removeThumbnailFile(
   fileToRemove: FileType,
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>
+  setFile: React.Dispatch<React.SetStateAction<FileType>>,
+  form: UseFormReturn<PostValues>
 ) {
   try {
-    setFile((prevFile) => prevFile && { ...prevFile, isDeleting: true });
+    setFile((prevFile) => ({ ...prevFile, isDeleting: true }));
+
     if (fileToRemove.key) {
       const response = await fetch("/api/s3/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: fileToRemove?.key }),
+        body: JSON.stringify({ key: fileToRemove.key }),
       });
 
       if (!response.ok) {
         toast.error("Failed to remove file from storage");
-        setFile(
-          (prevFile) =>
-            prevFile && { ...prevFile, isDeleting: false, error: true }
-        );
+        setFile((prevFile) => ({
+          ...prevFile,
+          isDeleting: false,
+          error: true,
+        }));
         return;
       }
     }
 
-    setFile(null);
+    if (fileToRemove.objectUrl) {
+      URL.revokeObjectURL(fileToRemove.objectUrl);
+    }
+
+    setFile({
+      id: "",
+      file: undefined,
+      uploading: false,
+      progress: 0,
+      isDeleting: false,
+      error: false,
+      isSubmmited: false,
+      isDeleted: true,
+    });
+    form.resetField("thumbnailImage");
     toast.success("File remove successfully");
   } catch (error) {
     toast.error("Failed to remove file from storage");
-    setFile(
-      (prevFile) => prevFile && { ...prevFile, isDeleting: false, error: true }
-    );
+    setFile((prevFile) => ({ ...prevFile, isDeleting: false, error: true }));
   }
 }
 
 export async function uploadThumbnailFile(
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>,
+  setFile: React.Dispatch<React.SetStateAction<FileType>>,
   file: File
 ) {
-  setFile((prevFile) => prevFile && { ...prevFile, uploading: true });
+  setFile((prevFile) => ({ ...prevFile, uploading: true }));
 
   try {
     const uniqueKey = `thumbnails/${file.name}-${uuidv4()}`;
@@ -58,15 +73,12 @@ export async function uploadThumbnailFile(
 
     if (!presignedResponse.ok) {
       toast.error("Failed to get presigned URL");
-      setFile(
-        (prevFile) =>
-          prevFile && {
-            ...prevFile,
-            uploading: false,
-            progress: 0,
-            error: true,
-          }
-      );
+      setFile((prevFile) => ({
+        ...prevFile,
+        uploading: false,
+        progress: 0,
+        error: true,
+      }));
       return;
     }
 
@@ -89,14 +101,11 @@ export async function uploadThumbnailFile(
           //       : f
           //   )
           // );
-          setFile(
-            (prevFile) =>
-              prevFile && {
-                ...prevFile,
-                progress: Math.round(percentComplete),
-                key: key,
-              }
-          );
+          setFile((prevFile) => ({
+            ...prevFile,
+            progress: Math.round(percentComplete),
+            key: uniqueKey,
+          }));
         }
       };
 
@@ -111,15 +120,13 @@ export async function uploadThumbnailFile(
           //   )
           // );
 
-          setFile(
-            (prevFile) =>
-              prevFile && {
-                ...prevFile,
-                uploading: false,
-                progress: 100,
-                error: false,
-              }
-          );
+          setFile((prevFile) => ({
+            ...prevFile,
+            uploading: false,
+            progress: 100,
+            error: false,
+            key: uniqueKey,
+          }));
 
           toast.success("File uploaded successfully");
           resolve();
@@ -136,6 +143,8 @@ export async function uploadThumbnailFile(
       xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
     });
+
+    return key;
   } catch (error) {
     console.log("Error in upload file : ", error);
     toast.error("Something went wrong");
@@ -148,16 +157,20 @@ export async function uploadThumbnailFile(
     //   )
     // );
 
-    setFile(
-      (prevFile) =>
-        prevFile && { ...prevFile, uploading: false, progress: 0, error: true }
-    );
+    setFile((prevFile) => ({
+      ...prevFile,
+      uploading: false,
+      progress: 0,
+      error: true,
+    }));
+    throw error;
   }
+
 }
 
 export const onThumbnailFileDrop = (
   acceptedFiles: File[],
-  setFile: React.Dispatch<React.SetStateAction<FileType | null>>
+  setFile: React.Dispatch<React.SetStateAction<FileType>>
 ) => {
   if (acceptedFiles.length) {
     setFile({
@@ -169,6 +182,7 @@ export const onThumbnailFileDrop = (
       error: false,
       objectUrl: URL.createObjectURL(acceptedFiles[0]),
       isSubmmited: false,
+      isDeleted: false,
     });
   }
   // uploadThumbnailFile(setFile, acceptedFiles[0]);

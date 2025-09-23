@@ -1,13 +1,28 @@
 import CategoryManager from "@/components/admin/category-manager";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { User } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import { getAllCategories, getPostCount, getUserCount } from "../actions/admin-actions";
+import {
+  getAllCategories,
+  getCategoriesWithVideoCount,
+  getPostCount,
+  getUserCount,
+} from "../../actions/admin-actions";
 
 async function AdminPage() {
-  const [categories, userCount, postCount] = await Promise.all([getAllCategories(), getUserCount(), getPostCount()])
+  const [categories, userCount, postCount] = await Promise.all([
+    getCategoriesWithVideoCount(),
+    getUserCount(),
+    getPostCount(),
+  ]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6">
@@ -27,11 +42,15 @@ async function AdminPage() {
               <User className="mr-2 h-5 w-5 text-amber-500" />
               Total Users
             </CardTitle>
-            <CardDescription>All Registered users on the platform</CardDescription>
+            <CardDescription>
+              All Registered users on the platform
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <p className="text-2xl md:text-3xl font-bold text-orange-400">{userCount}</p>
+            <p className="text-2xl md:text-3xl font-bold text-orange-400">
+              {userCount}
+            </p>
           </CardContent>
         </Card>
 
@@ -41,22 +60,28 @@ async function AdminPage() {
               <User className="mr-2 h-5 w-5 text-amber-500" />
               Total Posts
             </CardTitle>
-            <CardDescription>All Uploaded Posts on the platform</CardDescription>
+            <CardDescription>
+              All Uploaded Posts on the platform
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <p className="text-2xl md:text-3xl font-bold text-orange-400">{postCount}</p>
+            <p className="text-2xl md:text-3xl font-bold text-orange-400">
+              {postCount}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl md:text-2xl text-center font-bold">Category Mangement</CardTitle>
+          <CardTitle className="text-xl md:text-2xl text-center font-bold">
+            Category Mangement
+          </CardTitle>
         </CardHeader>
 
         <CardContent>
-          <CategoryManager categories={categories}/>
+          <CategoryManager categories={categories} />
         </CardContent>
       </Card>
     </div>

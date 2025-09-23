@@ -50,6 +50,48 @@
       "when": 1757866896234,
       "tag": "0006_lush_meltdown",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1758192477765,
+      "tag": "0007_yummy_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1758195421408,
+      "tag": "0008_common_tigra",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1758195674486,
+      "tag": "0009_condemned_komodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1758398724698,
+      "tag": "0010_ambiguous_lester",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1758435838586,
+      "tag": "0011_silly_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1758452101441,
+      "tag": "0012_ancient_rattler",
+      "breakpoints": true
     }
   ]
 }

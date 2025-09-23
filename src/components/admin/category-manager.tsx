@@ -1,5 +1,5 @@
 "use client";
-import { addNewCategory, deleteCategoryById } from "@/app/actions/admin-actions";
+import { addNewCategory, deleteCategoryById } from "@/actions/admin-actions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -16,7 +16,25 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Loader2, Trash } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 
 const categorySchema = z.object({
   name: z
@@ -28,9 +46,9 @@ const categorySchema = z.object({
 type CategoryValue = z.infer<typeof categorySchema>;
 
 function CategoryManager({
-  categories
+  categories,
 }: {
-  categories: CategoryProps[];
+  categories: CategoryWithVideoCountProps[];
 }) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -58,30 +76,27 @@ function CategoryManager({
     }
   };
 
-  const handleDeleteCategory = async(categoryId: number) => {
+  const handleDeleteCategory = async (categoryId: number) => {
     setIsLoading(true);
+    // console.log("Delete function called");
 
     try {
-      const result = await deleteCategoryById(categoryId)
-
-      if(result.success){
-        toast.success(result.message)
-      }
-      else{
-        toast.error(result.message)
+      const result = await deleteCategoryById(categoryId);
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
       }
     } catch (error) {
-       console.log("Error in delete Category : ", error);
-       toast.error("Something went wrong! Please try again later.");
-    }
-    finally{
+      console.log("Error in delete Category : ", error);
+      toast.error("Something went wrong! Please try again later.");
+    } finally {
       setIsLoading(false);
     }
-  }
-
+  };
 
   return (
-    <div className="space-y-6 overflow-y-auto max-h-[600px]">
+    <div className="space-y-6 overflow-auto max-h-[600px]">
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(handleCategorySubmit)}
@@ -118,7 +133,9 @@ function CategoryManager({
       </Form>
 
       <div>
-        <h3 className="text-lg md:text-xl font-semibold mb-4">Categories{categories.length > 0 && ` : ${categories.length}`}</h3>
+        <h3 className="text-lg md:text-xl font-semibold mb-4">
+          Categories{categories.length > 0 && ` : ${categories.length}`}
+        </h3>
         {categories.length === 0 ? (
           <p>No Category found. Add your first category above</p>
         ) : (
@@ -126,6 +143,7 @@ function CategoryManager({
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>VideoCount</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -135,18 +153,45 @@ function CategoryManager({
               {categories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-medium">{category.name}</TableCell>
+                  <TableCell className="font-medium text-center">
+                    {category.count}
+                  </TableCell>
                   <TableCell>
                     {new Date(category.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant={"outline"}
-                      className="cursor-pointer"
-                      onClick={() => handleDeleteCategory(category.id)}
-                      disabled={isLoading}
-                    >
-                      <Trash className="size-5 text-red-500" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger>
+                        <Button
+                          variant={"outline"}
+                          className="cursor-pointer"
+                          // onClick={() => handleDeleteCategory(category.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash className="size-5 text-red-500" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Are you want to delete tag : {category.name} ?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete this tag.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteCategory(category.id)}
+                            disabled={isLoading}
+                          >
+                            Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
