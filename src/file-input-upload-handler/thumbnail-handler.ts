@@ -13,6 +13,7 @@ export async function removeThumbnailFile(
     setFile((prevFile) => ({ ...prevFile, isDeleting: true }));
 
     if (fileToRemove.key) {
+      console.log("File remove by key function is hitted in thumbnail fle remove")
       const response = await fetch("/api/s3/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -28,6 +29,9 @@ export async function removeThumbnailFile(
         }));
         return;
       }
+            console.log(
+              "File remove successfull by key in thumbnail fle remove"
+            );
     }
 
     if (fileToRemove.objectUrl) {
@@ -41,8 +45,9 @@ export async function removeThumbnailFile(
       progress: 0,
       isDeleting: false,
       error: false,
-      isSubmmited: false,
+      isFromPost: false,
       isDeleted: true,
+      key:undefined,
     });
     form.resetField("thumbnailImage");
     toast.success("File remove successfully");
@@ -181,7 +186,7 @@ export const onThumbnailFileDrop = (
       isDeleting: false,
       error: false,
       objectUrl: URL.createObjectURL(acceptedFiles[0]),
-      isSubmmited: false,
+      isFromPost: false,
       isDeleted: false,
     });
   }

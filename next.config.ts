@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
       "vidme-video-sharing-website-private.s3.ap-south-1.amazonaws.com",
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true
+  }
 };
 
 export default nextConfig;

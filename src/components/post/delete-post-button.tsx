@@ -13,15 +13,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-toastify";
-import { deletePostByslug } from "@/actions/admin-actions";
+import { deletePostBySlug } from "@/actions/admin-actions";
+import { useRouter } from "next/navigation";
 
 function DeletePostButton({ slug }: { slug: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deletePostByslug(slug);
+      const result = await deletePostBySlug(slug);
+      if(result.success){
+        toast.success(result.message)
+        router.push("/admin")
+      }
     } catch (error) {
       console.log("Error in Delete Post : ", error);
       toast.error("Internal server error!");

@@ -4,10 +4,11 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { category, post, postCategory, user } from "@/lib/db/schema";
 import { slugify } from "@/lib/utils";
-import { count, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getPostBySlug } from "./users-actions";
+import { deleteAwsFiles, deleteAwsFolder } from "@/config/aws-config";
 
 export async function getServerSession() {
   const session = await auth.api.getSession({
@@ -23,7 +24,7 @@ export async function addNewCategory(name: string) {
   if (!session?.user || session.user.role !== "admin") {
     throw new Error("You must be admin to Continue");
   }
-
+  name = name.trim();
   try {
     const existingCategory = await db
       .select()
@@ -233,31 +234,117 @@ export const addNewPost = async ({
   }
 };
 
-export const deletePostByslug = async (slug: string) => {
+export const updatePostAction = async (
+  {
+    title,
+    description,
+    categoryIds,
+    thumbnailKey,
+    screenshotKeys,
+    isPublic,
+    videoUrl,
+    videoKey,
+  }: PostFormPayloadProps,
+  slug: string
+) => {
   const session = await getServerSession();
   if (!session?.user || session.user.role !== "admin") {
     throw new Error("You must be admin to Continue");
   }
 
   try {
-    const existingPost = await db
+    const slug = slugify(title);
+
+    // const videoUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.ap-south-1.amazonaws.com/${videoKey}`;
+    const thumbnailUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.ap-south-1.amazonaws.com/${thumbnailKey}`;
+    const screenshotUrls = screenshotKeys.map(
+      (key) =>
+        `https://${process.env.AWS_S3_BUCKET_NAME}.s3.ap-south-1.amazonaws.com/${key}`
+    );
+
+    const [result] = await db
+      .update(post)
+      .set({
+        description,
+        videoUrl,
+        videoKey,
+        thumbnailUrl,
+        thumbnailKey,
+        screenshotUrls,
+        screenshotKeys,
+        isPublic,
+      })
+      .where(eq(post.slug, slug))
+      .returning();
+
+    // console.log("The result of post update : ", result);
+
+    const existingCategoryIdsResult = await db
       .select()
-      .from(post)
-      .where(eq(post.slug, slug));
+      .from(postCategory)
+      .where(eq(postCategory.postId, result.id));
+
+    const existingCategories = existingCategoryIdsResult.map(
+      (cat) => cat.categoryId
+    );
+
+    const categoriesToAdd: number[] = categoryIds
+      ? categoryIds
+          .filter((item) => !existingCategories.includes(Number(item)))
+          .map((item) => Number(item))
+      : [];
+    console.log("Categories to be added value is : ", categoriesToAdd);
+
+    const categoriesToDeleted: number[] = existingCategories
+      ? existingCategories.filter((item) => !categoryIds.includes(String(item)))
+      : [];
+    console.log("Categories to be deleted value is : ", categoriesToDeleted);
+
+    await Promise.all(
+      categoriesToAdd.map((id) =>
+        db.insert(postCategory).values({
+          postId: result.id,
+          categoryId: Number(id),
+        })
+      )
+    );
+
+    await Promise.all(
+      categoriesToDeleted.map((id) =>
+        db
+          .delete(postCategory)
+          .where(
+            and(
+              eq(postCategory.categoryId, id),
+              eq(postCategory.postId, result.id)
+            )
+          )
+      )
+    );
+
+    revalidatePath("/");
+    revalidatePath(`/post/${slug}`);
+    revalidatePath(`/admin`);
+
+    return {
+      success: true,
+      message: "Post added successfully",
+      slug,
+    };
   } catch (error) {
-    console.log("Error in deletePostBySlug : ", error);
+    console.log("Error in Add new Post : ", error);
     return {
       success: false,
-      message: "Internal server error! Post can not be deleted.",
+      message: "Failed to create new Post",
     };
   }
 };
 
 export async function getPostForEditBySlug(slug: string) {
-const session = await getServerSession();
-if (!session?.user || session.user.role !== "admin") {
-  throw new Error("You must be admin to Continue");
-}
+  const session = await getServerSession();
+  if (!session?.user || session.user.role !== "admin") {
+    throw new Error("You must be admin to Continue");
+  }
 
   try {
     const result = await db
@@ -290,6 +377,66 @@ if (!session?.user || session.user.role !== "admin") {
     return {
       success: false,
       message: "Server Error! Please try again later.",
+    };
+  }
+}
+
+export async function deletePostBySlug(slug: string) {
+  if (!slug) {
+    return {
+      success: false,
+      message: "Invalid Request",
+    };
+  }
+
+  const session = await getServerSession();
+  if (!session?.user || session.user.role !== "admin") {
+    throw new Error("You must be admin to Continue");
+  }
+
+  try {
+    const existingPostResult = await db
+      .select()
+      .from(post)
+      .where(eq(post.slug, slug));
+    if (existingPostResult.length === 0) {
+      return {
+        success: false,
+        message: "No post found",
+      };
+    }
+    const existingPost = existingPostResult[0];
+    const keysToDelete = [
+      existingPost.thumbnailKey,
+      ...existingPost.screenshotKeys,
+    ];
+
+    await Promise.all(
+      keysToDelete.map((key) => {
+        console.log("The value of key going deleted : ", key);
+        deleteAwsFiles(key);
+      })
+    );
+
+    // delete aws video folder
+    const folderName = existingPost.videoKey.split("/index.m3u8")[0];
+    console.log(folderName);
+    await deleteAwsFolder(folderName);
+
+    await db.delete(post).where(eq(post.id, existingPost.id));
+
+    revalidatePath("/");
+    revalidatePath(`/admin`);
+
+    return {
+      success: true,
+      message: "Delete post successfully",
+    };
+  } catch (error) {
+    console.log("Error in Delete post by slug action : ", error);
+    return {
+      success: false,
+      message: "Internal Server Error! Please try again later",
     };
   }
 }

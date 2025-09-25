@@ -1,21 +1,22 @@
+// import "video.js";
+
 type CategoryProps = {
   id: number;
   name: string;
   createdAt: Date;
-}
+};
 
 type CategoryWithVideoCountProps = {
-  id:number;
+  id: number;
   name: string;
-  createdAt:Date;
+  createdAt: Date;
   count: number;
-}
+};
 
 type PostFormPayloadProps = {
   title: string;
   description: string;
   categoryIds: string[];
-  videoKey?: string ;
   thumbnailKey: string;
   screenshotKeys: string[];
   isPublic: boolean | undefined;
@@ -29,17 +30,17 @@ interface PostContainerProps {
     postSlug: string;
     postTitle: string;
     postThumbnail: string;
-    createdAt: Date|null;
+    createdAt: Date | null;
   }[];
 }
 
 interface SearchParamsProps {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
 interface PaginationWithLinksProps {
   totalPageCount: number;
-  page:number;
+  page: number;
 }
 
 interface PostWithCount {
@@ -55,20 +56,26 @@ interface PostWithCount {
 
 interface EditPagePostsProps {
   // post: {
-    categories: unknown;
-    id: string;
-    title: string;
-    slug: string;
-    description: string | null;
-    videoUrl: string;
-    videoKey: string | null;
-    thumbnailUrl: string;
-    thumbnailKey: string;
-    screenshotUrls: string[];
-    screenshotKeys: string[];
-    isPublic: boolean | null;
-    isPending: boolean | null;
-    createdAt: Date | null;
-    updatedAt: Date | null;
+  categories: unknown;
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  videoUrl: string;
+  videoKey: string;
+  thumbnailUrl: string;
+  thumbnailKey: string;
+  screenshotUrls: string[];
+  screenshotKeys: string[];
+  isPublic: boolean | null;
+  isPending: boolean | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
   // };
 }
+
+// declare module "video.js" {
+  interface VideoJsPlayerPropsInterface {
+    httpSourceSelector?: (options?: { default?: string }) => void;
+  }
+// }

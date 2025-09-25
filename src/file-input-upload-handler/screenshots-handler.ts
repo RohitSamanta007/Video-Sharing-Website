@@ -41,8 +41,10 @@ export async function removeScreenshotFile(
         return;
       }
     }
+    else{
+      form.setValue("screenshotImages", files.filter((f) => f.id !==fileId).map((f)=> f.file!));
+    }
 
-    form.setValue("screenshotImages", files.filter((f) => f.id !==fileId).map((f)=> f.file!));
     setFiles((prevFile) => prevFile.filter((f) => f.id !== fileId));
     toast.success("File remove successfully");
   } catch (error) {
@@ -177,7 +179,7 @@ export const onScreenshotsFileDrop = (
       isDeleting: false,
       error: false,
       objectUrl: URL.createObjectURL(file),
-      isSubmmited: false,
+      isFromPost: false,
       isDeleted: false,
     };
   });

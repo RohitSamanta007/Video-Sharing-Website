@@ -10,10 +10,10 @@ import { notFound } from "next/navigation";
 
 
 async function HomePagePosts({ searchParams }: SearchParamsProps) {
-
-    const currentPage = parseInt((searchParams.page as string) || "1");
-    const sortBy = (searchParams.sortBy as string) || "latest";
-    const query = (searchParams.search_query as string) || "";
+  const searchParamsResult = await searchParams;
+    const currentPage = parseInt((searchParamsResult.page as string) || "1");
+    const sortBy = (searchParamsResult.sortBy as string) || "latest";
+    const query = (searchParamsResult.search_query as string) || "";
 
     console.log("The vlaue of current page : ", currentPage);
     console.log("The vlaue of sort by : ", sortBy);

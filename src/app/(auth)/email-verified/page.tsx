@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import React from 'react'
 
-export const metadate: Metadata = {
+export const metadata: Metadata = {
     title: "Email Verified",
 }
 

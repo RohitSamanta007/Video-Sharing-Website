@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import React, { Suspense } from "react";
 import videojs from "video.js";
 
-function VideoPlayer({videoUrl, thumbnailImageUrl}:{videoUrl:string, thumbnailImageUrl:string}){
+function VideoPlayer({videoUrl, thumbnailImageUrl}:{videoUrl:string, thumbnailImageUrl?:string}){
   const playerRef = React.useRef<videojs.Player|undefined>(undefined);
 
   const videoJsOptions = {
@@ -19,7 +19,9 @@ function VideoPlayer({videoUrl, thumbnailImageUrl}:{videoUrl:string, thumbnailIm
         type: "application/x-mpegURL",
       },
     ],
-    poster:thumbnailImageUrl,
+    poster:
+      thumbnailImageUrl ||
+      "https://vidme-video-sharing-website-private.s3.ap-south-1.amazonaws.com/674db4b94f6966c47d740174_video-thumbnails-1.webp",
   };
 
   const handlePlayerReady = (player:videojs.Player) => {

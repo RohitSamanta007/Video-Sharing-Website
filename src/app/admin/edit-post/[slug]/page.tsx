@@ -21,7 +21,7 @@ async function EditPostPage({ params }: { params: Promise<{ slug: string }> }) {
 
   const post = result.data!;
 
-  console.log("The value of post in edit page : ", post);
+  // console.log("The value of post in edit page : ", post);
 
   return (
     <main className="py-10">

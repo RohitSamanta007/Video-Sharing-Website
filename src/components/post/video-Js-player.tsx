@@ -29,8 +29,8 @@ function VideoJs({
       });
 
       player.ready(() => {
-        if (typeof player.httpSourceSelector === "function") {
-          player.httpSourceSelector({ default: "auto" });
+        if (typeof (player as any).httpSourceSelectorVideoJsPlayerProps === "function") {
+          (player as any).httpSourceSelector({ default: "auto" });
         }
       });
 

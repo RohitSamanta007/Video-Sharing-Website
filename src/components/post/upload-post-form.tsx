@@ -2,7 +2,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import z from "zod";
+import z, { boolean, success } from "zod";
+import { v4 as uuidv4 } from "uuid";
 import {
   Form,
   FormControl,
@@ -40,50 +41,54 @@ import {
   rejectedThumbnailFiles,
 } from "@/file-input-upload-handler/thumbnail-handler";
 import { Checkbox } from "../ui/checkbox";
-import { addNewPost } from "@/actions/admin-actions";
+import { addNewPost, updatePostAction } from "@/actions/admin-actions";
 import { useRouter } from "next/navigation";
+import VideoPlayer from "@/components/post/videoPlayer";
 
-export const postSchema = z.object({
-  title: z
-    .string()
-    .min(3, "Title must be at least 3 characters long")
-    .max(100, "Title must be under 100 characters"),
-  description: z
-    .string()
-    .min(10, "Description must be at least 10 characters long")
-    .max(500, "Description must be under 500 characters"),
-  categoryIds: z
-    .array(z.string().nonempty("Please select a category"))
-    .min(1, "Please select at least one category"),
-  thumbnailImage: z
-    .instanceof(File, { message: "File is required" })
-    .refine(
-      (file) => file.type.startsWith("image/"),
-      "Only image files are allowed"
+export const postSchema = (isEditing: boolean) =>
+  z.object({
+    title: z
+      .string()
+      .min(3, "Title must be at least 3 characters long")
+      .max(200, "Title must be under 100 characters"),
+    description: z
+      .string()
+      .min(10, "Description must be at least 10 characters long")
+      .max(600, "Description must be under 500 characters"),
+    categoryIds: z
+      .array(z.string().nonempty("Please select a category"))
+      .min(1, "Please select at least one category"),
+    thumbnailImage: isEditing
+      ? z.instanceof(File).optional()
+      : z
+          .instanceof(File, { message: "File is required" })
+          .refine(
+            (file) => file.type.startsWith("image/"),
+            "Only image files are allowed"
+          ),
+    screenshotImages: z.array(
+      z
+        .instanceof(File)
+        .refine((file: File) => file.type.startsWith("image/"), {
+          message: "Only image files are allowed",
+        })
+        .refine((file: File) => file.size <= 10 * 1024 * 1024, {
+          message: "Each file must be less than (10Mb)",
+        })
     ),
-  screenshotImages: z.array(
-    z
-      .instanceof(File)
-      .refine((file: File) => file.type.startsWith("image/"), {
-        message: "Only image files are allowed",
-      })
-      .refine((file: File) => file.size <= 10 * 1024 * 1024, {
-        message: "Each file must be less than (10Mb)",
-      })
-  ),
-  // videoFile: z
-  //   .instanceof(File, { message: "File is required" })
-  //   .refine(
-  //     (file) => file.type.startsWith("video/"),
-  //     "Only image files are allowed"
-  //   ),
-  videoUrl: z.string().min(1, "You must provide video url to submit."),
-  videoKey: z.string().min(1, "You must provide video key to submit."),
+    // videoFile: z
+    //   .instanceof(File, { message: "File is required" })
+    //   .refine(
+    //     (file) => file.type.startsWith("video/"),
+    //     "Only image files are allowed"
+    //   ),
+    videoUrl: z.string().min(1, "You must provide video url to submit."),
+    videoKey: z.string().min(1, "You must provide video key to submit."),
 
-  isPublic: z.boolean().optional(),
-});
+    isPublic: z.boolean().optional(),
+  });
 
-export type PostValues = z.infer<typeof postSchema>;
+export type PostValues = z.infer<ReturnType<typeof postSchema>>;
 
 export interface FileType {
   id: string;
@@ -94,23 +99,50 @@ export interface FileType {
   isDeleting: boolean;
   error: boolean;
   objectUrl?: string;
-  isSubmmited: boolean;
+  isFromPost: boolean;
   isDeleted: boolean;
 }
 
-function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryProps[], post?:EditPagePostsProps, isEditing?:boolean }) {
+function UploadPostFrom({
+  categories,
+  post,
+  isEditing,
+}: {
+  categories: CategoryProps[];
+  post?: EditPagePostsProps;
+  isEditing?: boolean;
+}) {
   const router = useRouter();
+  const postCategoriesWithName: { id: number; name: string }[] =
+    isEditing && post
+      ? (post.categories as { id: number; name: string }[])
+      : [];
 
-  const [thumbnailFile, setThumbnailFile] = useState<FileType>({
-    id: "",
-    uploading: false,
-    progress: 0,
-    isDeleting: false,
-    error: false,
-    isSubmmited: false,
-    isDeleted: false,
-    
-  });
+  const postCategory = postCategoriesWithName.map((cat) => String(cat.id));
+
+  const [thumbnailFile, setThumbnailFile] = useState<FileType>(
+    isEditing && post
+      ? {
+          id: uuidv4(),
+          uploading: false,
+          progress: 100,
+          isDeleting: false,
+          error: false,
+          isFromPost: true,
+          isDeleted: false,
+          objectUrl: post.thumbnailUrl,
+          key: post.thumbnailKey,
+        }
+      : {
+          id: "",
+          uploading: false,
+          progress: 0,
+          isDeleting: false,
+          error: false,
+          isFromPost: false,
+          isDeleted: false,
+        }
+  );
   // const [videoFile, setVideoFile] = useState<FileType>({
   //   id: "",
   //   uploading: false,
@@ -120,38 +152,64 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
   //   isSubmmited: false,
   //   isDeleted: false,
   // });
-  const [screenShotsFile, setScreenshotsFile] = useState<FileType[]>([]);
+  const postScreenshotsFiles =
+    isEditing && post
+      ? post.screenshotUrls.map((url, index) => {
+          return {
+            id: uuidv4(),
+            uploading: false,
+            progress: 100,
+            isDeleting: false,
+            error: false,
+            isFromPost: true,
+            isDeleted: false,
+            objectUrl: url,
+            key: post.screenshotKeys[index],
+          };
+        })
+      : [];
+  const [screenShotsFile, setScreenshotsFile] =
+    useState<FileType[]>(postScreenshotsFiles);
 
-  const form = useForm<PostValues>({
-    resolver: zodResolver(postSchema),
+  const form = useForm<z.infer<ReturnType<typeof postSchema>>>({
+    resolver: zodResolver(postSchema(!!isEditing)),
     defaultValues: {
-      title: "",
-      description: "",
-      categoryIds: [],
+      title: isEditing && post ? post.title : "",
+      description: isEditing && post ? post.description : "",
+      categoryIds: postCategory,
       thumbnailImage: undefined,
       // videoFile: undefined,
-      isPublic: true,
+      isPublic: isEditing && post ? post.isPublic! : true,
       screenshotImages: [],
-      videoUrl: "",
-      videoKey: "",
+      videoUrl: isEditing && post ? post.videoUrl : "",
+      videoKey: isEditing && post ? post.videoKey : "",
     },
   });
 
-  const onSubmitHandler = async (values: PostValues) => {
+  const onSubmitHandler = async (
+    values: z.infer<ReturnType<typeof postSchema>>
+  ) => {
     console.log("The value of the submitted form is : ", values);
 
     try {
-      const thumbnailkey: string = await uploadThumbnailFile(
-        setThumbnailFile,
-        values.thumbnailImage
-      );
+      const thumbnailkey: string = thumbnailFile.key
+        ? thumbnailFile.key
+        : await uploadThumbnailFile(setThumbnailFile, values.thumbnailImage!);
       console.log("The value of thumbnailKey is : ", thumbnailkey);
 
-      const screenshotsKeys = await Promise.all(
+      const existingScreenshostsKey = screenShotsFile
+        .map((item) => item.key)
+        .filter((key) => key !== undefined);
+      const screenshotsKeysOfSelectedFiles = await Promise.all(
         values.screenshotImages.map((file) =>
           uploadScreenshotsFile(setScreenshotsFile, file)
         )
       );
+      const screenshotsKeys = [
+        ...existingScreenshostsKey,
+        ...screenshotsKeysOfSelectedFiles,
+      ];
+
       console.log("All uploaded Screenshotes keys:", screenshotsKeys);
 
       // const videokey = await uploadVideoFile(setVideoFile, values.videoFile);
@@ -163,51 +221,69 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
         title: values.title,
         description: values.description,
         categoryIds: values.categoryIds,
-        videoKey: values.videoKey,
-        videoUrl: values.videoUrl,
+        videoKey: values.videoKey.trim(),
+        videoUrl: values.videoUrl.trim(),
         thumbnailKey: thumbnailkey,
         screenshotKeys: screenshotsKeys,
         isPublic: values.isPublic,
       };
 
-      const result = await addNewPost(payload);
+      console.log("the value of the paylod is : ", payload);
+
+      let result;
+      if (isEditing && post) {
+        result = await updatePostAction(payload, post.slug);
+      } else {
+        result = await addNewPost(payload);
+      }
       if (result.success) {
         toast("Post Added Successfully");
-        setTimeout(() => router.push(`/post/${result.slug}`), 2000);
+        router.push(`/post/${result.slug}`);
       } else {
         toast.error(result.message);
 
-        await removeThumbnailFile(thumbnailFile, setThumbnailFile, form);
+        // delete uploaded file if there is an error
+        !thumbnailFile.isFromPost &&
+          (await fetch("/api/s3/delete", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: thumbnailFile.key }),
+          }));
         await Promise.all(
-          screenShotsFile.map((file) =>
-            removeScreenshotFile(
-              screenShotsFile,
-              setScreenshotsFile,
-              file.id,
-              form
-            )
+          screenShotsFile.map(
+            (file) =>
+              !file.isFromPost &&
+              fetch("/api/s3/delete", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key: file.key }),
+              })
           )
         );
+        return;
       }
 
-      console.log("The vlaue of result is : ", result);
+      // console.log("The vlaue of result is : ", result);
     } catch (error) {
       console.log("Error in Form Submit : ", error);
       toast.error("Something went wrong");
 
       // delete uploaded files
-      await fetch("/api/s3/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: thumbnailFile.key }),
-      });
+      !thumbnailFile.isFromPost &&
+        (await fetch("/api/s3/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: thumbnailFile.key }),
+        }));
       await Promise.all(
-        screenShotsFile.map((file) =>
-          fetch("/api/s3/delete", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ key: file.key }),
-          })
+        screenShotsFile.map(
+          (file) =>
+            !file.isFromPost &&
+            fetch("/api/s3/delete", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key: file.key }),
+            })
         )
       );
     } finally {
@@ -218,7 +294,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
         progress: 0,
         isDeleting: false,
         error: false,
-        isSubmmited: false,
+        isFromPost: false,
         isDeleted: false,
       });
       // setVideoFile({
@@ -244,7 +320,18 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
     thumbnailFile?.uploading || screenShotsFile.some((file) => file.uploading);
 
   return (
-    <div>
+    <div className="relative">
+      {(loading) && (
+        <div className="absolute w-full flex items-center top-0 right-0 bottom-0 left-0 justify-center bg-background/50 ">
+          <div className=" flex flex-col items-center justify-center gap-3">
+            <Loader2 className="size-20 animate-spin " />
+            <h1 className="font-bold text-xl md:text-2xl lg:text-3xl">
+              Uploading... Please wait
+            </h1>
+          </div>
+        </div>
+      )}
+
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmitHandler)}
@@ -260,7 +347,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
                   <Input
                     placeholder="Enter post title"
                     {...field}
-                    disabled={loading}
+                    disabled={loading || isEditing}
                   />
                 </FormControl>
                 <FormMessage />
@@ -349,7 +436,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
           <FormField
             control={form.control}
             name="thumbnailImage"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>
                   Thumbnail Image File :{" "}
@@ -367,7 +454,9 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
                     maxFiles={1}
                     maxSize={10 * 1024 * 1024}
                     accept={{ "image/*": [] }}
-                    disabled={Boolean(thumbnailFile.file)}
+                    disabled={
+                      Boolean(thumbnailFile.file) || Boolean(thumbnailFile.key)
+                    }
                   >
                     {({ getRootProps, getInputProps, isDragActive }) => (
                       <div
@@ -383,7 +472,10 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
                           <Input
                             type="file"
                             {...getInputProps()}
-                            disabled={Boolean(thumbnailFile.file)}
+                            disabled={
+                              Boolean(thumbnailFile.file) ||
+                              Boolean(thumbnailFile.key)
+                            }
                           />
                           {isDragActive ? (
                             <p className="text-center">Drop the files here</p>
@@ -399,7 +491,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
                   </Dropzone>
                 </FormControl>
 
-                {thumbnailFile.file && (
+                {thumbnailFile.objectUrl && (
                   <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="relative aspect-square rounded-md overflow-hidden">
@@ -460,7 +552,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Screenshots Image Files (optional) :{" "}
+                  Screenshots Image Files :{" "}
                   <span className="text-xs text-muted-foreground">
                     (Image must be under 10 Mb)
                   </span>{" "}
@@ -478,7 +570,7 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
                       ]);
                     }}
                     onDropRejected={rejectedScreenshotsFiles}
-                    maxFiles={5}
+                    maxFiles={10 - screenShotsFile.length}
                     maxSize={10 * 1024 * 1024}
                     accept={{ "image/*": [] }}
                   >
@@ -687,6 +779,12 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
             name="videoUrl"
             render={({ field }) => (
               <FormItem>
+                {form.getValues("videoUrl").length > 0 && (
+                  <div>
+                    <VideoPlayer videoUrl={field.value} />
+                  </div>
+                )}
+
                 <FormLabel className="font-semibold">Video URL : </FormLabel>
                 <FormControl>
                   <Input
@@ -700,12 +798,15 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
             )}
           />
 
+          {/* video key  */}
           <FormField
             control={form.control}
             name="videoKey"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="font-semibold">AWS Video Key : </FormLabel>
+                <FormLabel className="font-semibold">
+                  AWS Video Key :{" "}
+                </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Enter Video Key"
@@ -743,6 +844,8 @@ function UploadPostFrom({ categories, post, isEditing }: { categories: CategoryP
           >
             {loading ? (
               <Loader2 className="animate-spin" />
+            ) : isEditing ? (
+              "Update Post"
             ) : (
               "Create a new Post"
             )}

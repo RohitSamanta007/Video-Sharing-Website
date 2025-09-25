@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import React, { Suspense } from "react";
-import VideoPlayer from "./videoPlayer";
+import VideoPlayer from "../../../components/post/videoPlayer";
 import { getServerSession } from "@/actions/admin-actions";
 import DeletePostButton from "@/components/post/delete-post-button";
 import { Bookmark } from "lucide-react";
@@ -46,7 +46,7 @@ async function PostBySlug({ params }: { params: Promise<{ slug: string }> }) {
       <div className="bg-background w-full  flex flex-col items-center justify-center gap-4 md:border md:p-4 rounded-lg">
         <h1 className="text-xl md:text-2xl font-bold">{post?.title}</h1>
 
-        <div className="relative w-full aspect-square max-w-3xl mx-auto">
+        <div className="relative w-full aspect-[2/3] max-w-3xl mx-auto">
           <Image
             src={post.thumbnailUrl}
             alt={post.title}
@@ -62,9 +62,7 @@ async function PostBySlug({ params }: { params: Promise<{ slug: string }> }) {
 
         <VideoPlayer
           videoUrl={post.videoUrl}
-          thumbnailImageUrl={
-            "https://vidme-video-sharing-website-private.s3.ap-south-1.amazonaws.com/thumbnails/Cool+wallpaper.jpg-1547fb0c-3e0d-4ee7-b136-67ded9d3bcb2"
-          }
+          thumbnailImageUrl={post.screenshotsUrls[0]}
         />
 
         <div className="w-full flex gap-4 justify-between items-center mt-3">

@@ -2,6 +2,7 @@ import {ThemeProvider as NextThemeProvider, ThemeProviderProps} from "next-theme
 import React from 'react'
 import { cn } from "@/lib/utils"
 import Header from "../layout/header";
+import Footer from "../layout/footer";
 
 interface ExtenderThemeProviderProps extends ThemeProviderProps {
     containerClassName?: string;
@@ -10,10 +11,14 @@ interface ExtenderThemeProviderProps extends ThemeProviderProps {
 function ThemeProvider({children, containerClassName, ...props}: ExtenderThemeProviderProps) {
   return (
     <NextThemeProvider {...props}>
+      <main className="flex flex-col min-h-screen">
+
         <Header/>
-        <main className={cn("container mx-auto p-4", containerClassName)}>
+        <section className={cn("container mx-auto p-4 flex-1", containerClassName)}>
             {children}
-        </main>
+        </section>
+        <Footer/>
+      </main>
     </NextThemeProvider>
   )
 }

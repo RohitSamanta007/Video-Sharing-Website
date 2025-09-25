@@ -47,8 +47,15 @@ async function SavedVideoPage() {
   return (
     <div>
       {posts?.length === 0 ? (
-        <div>
-          <p>No post found</p>
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <div>
+            <p className="text-xl md:text-2xl lg:text-3xl font-semibold text-red-400">
+              No Saved Post
+            </p>
+            <Button asChild className="mt-4 cursor-pointer" >
+              <Link href={"/"}>Go to Home Page</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <PostContainer posts={posts} />

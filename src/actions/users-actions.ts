@@ -179,7 +179,7 @@ export async function getPosts(currentPage:number, query:string, sortBy:string){
   
   try {
     
-    const postPerPage = 2;
+    const postPerPage = 3;
     const skip = postPerPage * (currentPage -1);
    
 
@@ -227,5 +227,58 @@ export async function getPosts(currentPage:number, query:string, sortBy:string){
       result: [],
       message: "Internal server error! Please try again later"
     };
+  }
+}
+
+
+export async function getPostByCategoryId(categoryId: number, currentPage: number, sortBy: string){
+  try {
+
+    const postPerPage = 2;
+    const skip = postPerPage * (currentPage - 1);
+
+    let orderBy;
+
+    switch (sortBy) {
+      case "oldest":
+        orderBy = asc(post.createdAt);
+        break;
+      default:
+        orderBy = desc(post.createdAt);
+    }
+
+    const result = await db
+      .select({
+        postId: post.id,
+        postSlug: post.slug,
+        postTitle: post.title,
+        postThumbnail: post.thumbnailUrl,
+        createdAt: post.createdAt!,
+        totalCount: sql<number>`count(*) OVER()`,
+      })
+      .from(postCategory)
+      .innerJoin(post, eq(post.id, postCategory.postId))
+      .where(eq(postCategory.categoryId, categoryId))
+      .orderBy(orderBy)
+      .limit(postPerPage)
+      .offset(skip);
+
+      const totalPost = result.length > 0 ? Number(result[0].totalCount) : 1;
+      const totalPageCount = Math.ceil(totalPost / postPerPage);
+
+
+      return {
+        success: true,
+        result,
+        totalPageCount,
+      }
+    
+  } catch (error) {
+    console.log("Error in getPostByCategoryName : ", error);
+    return {
+      success: false,
+      message: "Internal server error!",
+      result: [],
+    }
   }
 }

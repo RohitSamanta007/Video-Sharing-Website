@@ -56,12 +56,12 @@ export const auth = betterAuth({
     requireEmailVerification: true,
 
     sendResetPassword: async ({ user, url }) => {
-      await sendResetPasswordEmail(url, user);
+      await sendResetPasswordEmail(url, user.email, user.name);
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ url, user }) => {
-      await sendVerificationEmail(url, user);
+      await sendVerificationEmail(url, user.email, user.name);
     },
   },
   session: {
@@ -96,6 +96,8 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
+export type User = typeof auth.$Infer.Session.user;
+
 
 // for typescript
 // declare module "better-auth" {

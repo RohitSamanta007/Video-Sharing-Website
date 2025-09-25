@@ -1,15 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import { useRouter } from "next/navigation";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
+import { Button } from "../ui/button";
+import Link from "next/link";
 
 function FilterPost({
   categories,
@@ -28,7 +22,7 @@ function FilterPost({
   return (
     <div className="flex flex-col gap-2">
       <p>Category : {category.length > 0 && category} </p>
-      <Select onValueChange={handleChange} value={category}>
+      {/* <Select onValueChange={handleChange} value={category}>
         <SelectTrigger>
           <SelectValue placeholder="Select a Category" />
         </SelectTrigger>
@@ -48,7 +42,32 @@ function FilterPost({
             ))}
           </SelectGroup>
         </SelectContent>
-      </Select>
+      </Select> */}
+
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant={"outline"} className="cursor-pointer">All Categories</Button>
+        </SheetTrigger>
+
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="text-center text-lg font-bold text-orange-400">Select a category</SheetTitle>
+            <SheetDescription></SheetDescription>
+          </SheetHeader>
+
+        <div className="grid grid-cols-2 gap-2 py-4 px-4 items-center justify-center">
+          {categories.map((item) => (
+            <SheetClose asChild key={item.id} className="border px-4 py-0.5 rounded-md flex gap-1 justify-between overflow-y-auto">
+              <Link href={`/category/${item.name}-${item.id}`}>
+              <span>{item.name}</span>
+              <span>{item.count}</span>
+              </Link>
+            </SheetClose>
+          ))}
+        </div>
+
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

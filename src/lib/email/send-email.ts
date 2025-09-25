@@ -1,11 +1,13 @@
 import EmailVerificationTemplete from "@/components/mail/verification-email";
-import { Session } from "../auth-client";
+// import { Session } from "../auth-client";
+// import { User } from "../auth";
+// import { Session } from "better-auth";
 import { Resend } from "resend";
 import transpoter from "./nodemailer-config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const sendEmail2 = async (url: string, user: Session) => {
+export const sendEmail2 = async (url: string, user: User) => {
   // console.log("The value of user in sendEmail is : ", user);
   try {
     
@@ -20,11 +22,11 @@ export const sendEmail2 = async (url: string, user: Session) => {
   }
 };
 
-export const sendVerificationEmail = async(url:string, user:Session) =>{
+export const sendVerificationEmail = async (url: string, userEmail:string, userName: string) => {
   try {
     await transpoter.sendMail({
       from: process.env.SENDER_EMAIL,
-      to: user.email,
+      to: userEmail,
       subject: "Verify Your Email",
       html: `<!DOCTYPE html>
 <html lang="en">
@@ -39,7 +41,7 @@ export const sendVerificationEmail = async(url:string, user:Session) =>{
       style="margin:0 auto; padding:20px 25px 48px; background-image:url('/static/raycast-bg.png'); background-position:bottom; background-repeat:no-repeat;"
     >
       <h1 style="font-size:28px; font-weight:bold; margin-top:48px;">
-        Hello ${user.name}, Your Account Verification link
+        Hello ${userName}, Your Account Verification link
       </h1>
 
       <div style="margin:24px 0;">
@@ -84,14 +86,14 @@ export const sendVerificationEmail = async(url:string, user:Session) =>{
   } catch (error) {
     console.log("Error in sending Email : ", error);
   }
-}
+};
 
 
-export const sendResetPasswordEmail = async(url:string, user:Session) =>{
+export const sendResetPasswordEmail = async (url: string, userEamil: string, userName:string) => {
   try {
     await transpoter.sendMail({
       from: process.env.SENDER_EMAIL,
-      to: user.email,
+      to: userEamil,
       subject: "Reset Your Account's Password",
       html: `<!DOCTYPE html>
 <html lang="en">
@@ -106,7 +108,7 @@ export const sendResetPasswordEmail = async(url:string, user:Session) =>{
       style="margin:0 auto; padding:20px 25px 48px; background-image:url('/static/raycast-bg.png'); background-position:bottom; background-repeat:no-repeat;"
     >
       <h1 style="font-size:28px; font-weight:bold; margin-top:48px;">
-        Hello ${user.name}, Your Reset Password link
+        Hello ${userName}, Your Reset Password link
       </h1>
 
       <div style="margin:24px 0;">
@@ -151,4 +153,4 @@ export const sendResetPasswordEmail = async(url:string, user:Session) =>{
   } catch (error) {
     console.log("Error in sending Email : ", error);
   }
-}
+};

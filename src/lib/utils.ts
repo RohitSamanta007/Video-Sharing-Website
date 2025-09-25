@@ -14,3 +14,5 @@ export function slugify(text:string):string{
     .trim()
     .replace(/\s+/g, "-");
 }
+
+
