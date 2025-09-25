@@ -7,20 +7,20 @@ import transpoter from "./nodemailer-config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const sendEmail2 = async (url: string, user: User) => {
-  // console.log("The value of user in sendEmail is : ", user);
-  try {
+// export const sendEmail2 = async (url: string, user: User) => {
+//   // console.log("The value of user in sendEmail is : ", user);
+//   try {
     
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: ['delivered@resend.dev'],
-      subject: "Verify your email",
-      react: EmailVerificationTemplete({ url, name: user.name }),
-    });
-  } catch (error) {
-    console.log("Error in sending Email : ", error)
-  }
-};
+//     await resend.emails.send({
+//       from: "onboarding@resend.dev",
+//       to: ['delivered@resend.dev'],
+//       subject: "Verify your email",
+//       react: EmailVerificationTemplete({ url, name: user.name }),
+//     });
+//   } catch (error) {
+//     console.log("Error in sending Email : ", error)
+//   }
+// };
 
 export const sendVerificationEmail = async (url: string, userEmail:string, userName: string) => {
   try {
