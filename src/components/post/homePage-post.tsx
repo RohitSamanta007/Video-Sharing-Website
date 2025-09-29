@@ -15,9 +15,9 @@ async function HomePagePosts({ searchParams }: SearchParamsProps) {
     const sortBy = (searchParamsResult.sortBy as string) || "latest";
     const query = (searchParamsResult.search_query as string) || "";
 
-    console.log("The vlaue of current page : ", currentPage);
-    console.log("The vlaue of sort by : ", sortBy);
-    console.log("The vlaue of query : ", query);
+    // console.log("The vlaue of current page : ", currentPage);
+    // console.log("The vlaue of sort by : ", sortBy);
+    // console.log("The vlaue of query : ", query);
     
 
   const [categories, posts] = await Promise.all([

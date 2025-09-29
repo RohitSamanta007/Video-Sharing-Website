@@ -1,22 +1,27 @@
 import React, { useEffect, useRef } from "react";
-import videojs from "video.js";
+import videojs, { VideoJsPlayer, VideoJsPlayerOptions } from "video.js";
 import "video.js/dist/video-js.css";
 import "videojs-contrib-quality-levels";
 import "videojs-http-source-selector";
+
+// Extend Video.js types so TS knows about the plugin
+declare module "video.js" {
+  interface VideoJsPlayer {
+    httpSourceSelector?: (options?: { default?: string }) => void;
+  }
+}
 
 function VideoJs({
   options,
   onReady,
 }: {
-  options: videojs.PlayerOptions;
-  onReady: (player: videojs.Player) => void;
+  options: VideoJsPlayerOptions;
+  onReady: (player: VideoJsPlayer) => void;
 }) {
   const videoRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<videojs.Player | null>(null);
+  const playerRef = useRef<VideoJsPlayer | null>(null);
 
   useEffect(() => {
-    // if (!videoRef.current) return;
-
     if (!playerRef.current) {
       const videoElement = document.createElement("video-js");
 
@@ -29,13 +34,28 @@ function VideoJs({
       });
 
       player.ready(() => {
-        if (typeof (player as any).httpSourceSelectorVideoJsPlayerProps === "function") {
-          (player as any).httpSourceSelector({ default: "auto" });
+        // enable httpSourceSelector plugin
+        if (typeof player.httpSourceSelector === "function") {
+          player.httpSourceSelector({ default: "auto" });
+
+          // add the quality selector button to the control bar
+          // player.controlBar.addChild(
+          //   "SourceMenuButton",
+          //   {},
+          //   player.controlBar.children().length - 2
+          // );
         }
       });
 
       playerRef.current = player;
     }
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+    };
   }, [options, onReady]);
 
   return (

@@ -152,8 +152,6 @@ export const addNewPost = async ({
   thumbnailKey,
   screenshotKeys,
   isPublic,
-  videoUrl,
-  videoKey,
 }: PostFormPayloadProps) => {
   const session = await getServerSession();
   if (!session?.user || session.user.role !== "admin") {
@@ -195,8 +193,6 @@ export const addNewPost = async ({
         title,
         slug,
         description,
-        videoUrl,
-        videoKey,
         thumbnailUrl,
         thumbnailKey,
         screenshotUrls,
@@ -224,12 +220,63 @@ export const addNewPost = async ({
       success: true,
       message: "Post added successfully",
       slug,
+      postId: result.id,
     };
   } catch (error) {
     console.log("Error in Add new Post : ", error);
     return {
       success: false,
       message: "Failed to create new Post",
+    };
+  }
+};
+
+export const handlePostVideoUpdate = async (
+  postId: string,
+  videoUrl: string,
+  videoKey: string
+) => {
+  if (!postId || !videoUrl || !videoKey) {
+    return {
+      success: false,
+      message: "Missing details",
+    };
+  }
+
+  try {
+    const [existingPost] = await db
+      .select()
+      .from(post)
+      .where(eq(post.id, postId));
+    if (!existingPost) {
+      return {
+        success: false,
+        message: "Post not found",
+      };
+    }
+
+    await db
+      .update(post)
+      .set({
+        isPending: false,
+        videoKey,
+        videoUrl,
+      })
+      .where(eq(post.id, postId));
+
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath(`/post/${existingPost.slug}`);
+
+    return {
+      success: true,
+      message: "Post Update successfully",
+    };
+  } catch (error) {
+    console.log("Error in handle postVideoUpdate : ", error);
+    return {
+      success: false,
+      message: "Server Error! Please try again later",
     };
   }
 };
@@ -242,8 +289,7 @@ export const updatePostAction = async (
     thumbnailKey,
     screenshotKeys,
     isPublic,
-    videoUrl,
-    videoKey,
+    isPending,
   }: PostFormPayloadProps,
   slug: string
 ) => {
@@ -266,13 +312,12 @@ export const updatePostAction = async (
       .update(post)
       .set({
         description,
-        videoUrl,
-        videoKey,
         thumbnailUrl,
         thumbnailKey,
         screenshotUrls,
         screenshotKeys,
         isPublic,
+        isPending,
       })
       .where(eq(post.slug, slug))
       .returning();
@@ -330,6 +375,7 @@ export const updatePostAction = async (
       success: true,
       message: "Post added successfully",
       slug,
+      postId: result.id,
     };
   } catch (error) {
     console.log("Error in Add new Post : ", error);
@@ -438,5 +484,28 @@ export async function deletePostBySlug(slug: string) {
       success: false,
       message: "Internal Server Error! Please try again later",
     };
+  }
+}
+
+export async function getAllPendingPosts() {
+  const session = await getServerSession();
+  if (!session?.user || session.user.role !== "admin") {
+    throw new Error("You must be admin to Continue");
+  }
+
+  try {
+
+    const result = await db.select().from(post).where(eq(post.isPending,true))
+    return {
+      success:true,
+      posts : result
+    }
+    
+  } catch (error) {
+    console.log("Error in getAllPendingPost : ", error);
+    return {
+      success: false,
+      posts: []
+    }
   }
 }

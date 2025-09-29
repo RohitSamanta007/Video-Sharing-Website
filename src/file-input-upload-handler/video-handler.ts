@@ -1,21 +1,21 @@
-
 import { toast } from "react-toastify";
+import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { FileRejection } from "react-dropzone";
 import { FileType, PostValues } from "@/components/post/upload-post-form";
 import { UseFormReturn } from "react-hook-form";
 
-export async function removeThumbnailFile(
+export async function removeVideoFile(
   fileToRemove: FileType,
   setFile: React.Dispatch<React.SetStateAction<FileType>>,
   form: UseFormReturn<PostValues>
 ) {
   try {
+    console.log("the value of videofile in remove file : ", fileToRemove);
     setFile((prevFile) => ({ ...prevFile, isDeleting: true }));
 
     if (fileToRemove.key) {
-      console.log("File remove by key function is hitted in thumbnail fle remove")
-      const response = await fetch("/api/s3/delete", {
+      const response = await fetch("/api/s3/delete-folder", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: fileToRemove.key }),
@@ -30,9 +30,6 @@ export async function removeThumbnailFile(
         }));
         return;
       }
-            console.log(
-              "File remove successfull by key in thumbnail fle remove"
-            );
     }
 
     if (fileToRemove.objectUrl) {
@@ -48,24 +45,28 @@ export async function removeThumbnailFile(
       error: false,
       isFromPost: false,
       isDeleted: true,
-      key:undefined,
+      key: undefined,
     });
-    form.resetField("thumbnailImage");
+
+    form.resetField("videoFile");
     toast.success("File remove successfully");
   } catch (error) {
     toast.error("Failed to remove file from storage");
-    setFile((prevFile) => ({ ...prevFile, isDeleting: false, error: true }));
+     setFile((prevFile) => ({ ...prevFile, isDeleting: false, error: true }));
   }
 }
 
-export async function uploadThumbnailFile(
+export async function uploadVideoFile(
   setFile: React.Dispatch<React.SetStateAction<FileType>>,
-  file: File
+  file: File,
+  postId: string
 ) {
   setFile((prevFile) => ({ ...prevFile, uploading: true }));
 
   try {
-    const uniqueKey = `thumbnails/${file.name}-${uuidv4()}`;
+    console.log("Uploading new video file ...")
+    const uniqueKey = `TempVideos/${postId}/${file.name}-${uuidv4()}`;
+    console.log("Uploading new video file key is : ", uniqueKey)
     // get presigned url
     const presignedResponse = await fetch("/api/s3/upload", {
       method: "POST",
@@ -109,9 +110,10 @@ export async function uploadThumbnailFile(
           // );
           setFile((prevFile) => ({
             ...prevFile,
-            progress: Math.round(percentComplete),
             key: uniqueKey,
-          }));
+            progress: Math.round(percentComplete),
+          })
+          );
         }
       };
 
@@ -126,13 +128,16 @@ export async function uploadThumbnailFile(
           //   )
           // );
 
-          setFile((prevFile) => ({
-            ...prevFile,
-            uploading: false,
-            progress: 100,
-            error: false,
-            key: uniqueKey,
-          }));
+          setFile(
+            (prevFile) =>
+               ({
+                ...prevFile,
+                uploading: false,
+                progress: 100,
+                error: false,
+                key: uniqueKey,
+              })
+          );
 
           toast.success("File uploaded successfully");
           resolve();
@@ -163,18 +168,15 @@ export async function uploadThumbnailFile(
     //   )
     // );
 
-    setFile((prevFile) => ({
-      ...prevFile,
-      uploading: false,
-      progress: 0,
-      error: true,
-    }));
+    setFile(
+      (prevFile) =>
+         ({ ...prevFile, uploading: false, progress: 0, error: true })
+    );
     throw error;
   }
-
 }
 
-export const onThumbnailFileDrop = (
+export const onVideoFileDrop = (
   acceptedFiles: File[],
   setFile: React.Dispatch<React.SetStateAction<FileType>>
 ) => {
@@ -191,10 +193,10 @@ export const onThumbnailFileDrop = (
       isDeleted: false,
     });
   }
-  // uploadThumbnailFile(setFile, acceptedFiles[0]);
+  // uploadVideoFile(setFile, acceptedFiles[0]);
 };
 
-export const rejectedThumbnailFiles = (fileRejection: FileRejection[]) => {
+export const rejectedVideoFiles = (fileRejection: FileRejection[]) => {
   if (fileRejection.length) {
     const tooManyFiles = fileRejection.find(
       (rejection) => rejection.errors[0].code === "too-many-files"

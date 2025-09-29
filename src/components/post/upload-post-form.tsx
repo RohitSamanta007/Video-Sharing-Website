@@ -40,6 +40,12 @@ import {
   onThumbnailFileDrop,
   rejectedThumbnailFiles,
 } from "@/file-input-upload-handler/thumbnail-handler";
+import {
+  removeVideoFile,
+  uploadVideoFile,
+  onVideoFileDrop,
+  rejectedVideoFiles,
+} from "@/file-input-upload-handler/video-handler";
 import { Checkbox } from "../ui/checkbox";
 import { addNewPost, updatePostAction } from "@/actions/admin-actions";
 import { useRouter } from "next/navigation";
@@ -76,14 +82,14 @@ export const postSchema = (isEditing: boolean) =>
           message: "Each file must be less than (10Mb)",
         })
     ),
-    // videoFile: z
-    //   .instanceof(File, { message: "File is required" })
-    //   .refine(
-    //     (file) => file.type.startsWith("video/"),
-    //     "Only image files are allowed"
-    //   ),
-    videoUrl: z.string().min(1, "You must provide video url to submit."),
-    videoKey: z.string().min(1, "You must provide video key to submit."),
+    videoFile: z
+      .instanceof(File, { message: "File is required" })
+      .refine(
+        (file) => file.type.startsWith("video/"),
+        "Only image files are allowed"
+      ),
+    // videoUrl: z.string().min(1, "You must provide video url to submit."),
+    // videoKey: z.string().min(1, "You must provide video key to submit."),
 
     isPublic: z.boolean().optional(),
   });
@@ -120,6 +126,8 @@ function UploadPostFrom({
 
   const postCategory = postCategoriesWithName.map((cat) => String(cat.id));
 
+  // console.log("the value of the post in update post form : ", post)
+
   const [thumbnailFile, setThumbnailFile] = useState<FileType>(
     isEditing && post
       ? {
@@ -143,15 +151,29 @@ function UploadPostFrom({
           isDeleted: false,
         }
   );
-  // const [videoFile, setVideoFile] = useState<FileType>({
-  //   id: "",
-  //   uploading: false,
-  //   progress: 0,
-  //   isDeleting: false,
-  //   error: false,
-  //   isSubmmited: false,
-  //   isDeleted: false,
-  // });
+  const [videoFile, setVideoFile] = useState<FileType>(
+    isEditing && post
+      ? {
+          id: uuidv4(),
+          uploading: false,
+          progress: 100,
+          isDeleting: false,
+          error: false,
+          isFromPost: true,
+          isDeleted: false,
+          objectUrl: post.videoUrl,
+          key: post.videoKey,
+        }
+      : {
+          id: "",
+          uploading: false,
+          progress: 0,
+          isDeleting: false,
+          error: false,
+          isFromPost: false,
+          isDeleted: false,
+        }
+  );
   const postScreenshotsFiles =
     isEditing && post
       ? post.screenshotUrls.map((url, index) => {
@@ -178,11 +200,11 @@ function UploadPostFrom({
       description: isEditing && post ? post.description : "",
       categoryIds: postCategory,
       thumbnailImage: undefined,
-      // videoFile: undefined,
+      videoFile: undefined,
       isPublic: isEditing && post ? post.isPublic! : true,
       screenshotImages: [],
-      videoUrl: isEditing && post ? post.videoUrl : "",
-      videoKey: isEditing && post ? post.videoKey : "",
+      // videoUrl: isEditing && post ? post.videoUrl : "",
+      // videoKey: isEditing && post ? post.videoKey : "",
     },
   });
 
@@ -221,20 +243,29 @@ function UploadPostFrom({
         title: values.title,
         description: values.description,
         categoryIds: values.categoryIds,
-        videoKey: values.videoKey.trim(),
-        videoUrl: values.videoUrl.trim(),
+        // videoKey: values.videoKey.trim(),
+        // videoUrl: values.videoUrl.trim(),
         thumbnailKey: thumbnailkey,
         screenshotKeys: screenshotsKeys,
         isPublic: values.isPublic,
       };
 
-      console.log("the value of the paylod is : ", payload);
+      // console.log("the value of the paylod is : ", payload);
+      console.log("The value of the videoFile is : ", videoFile)
 
       let result;
       if (isEditing && post) {
-        result = await updatePostAction(payload, post.slug);
+        result = await updatePostAction({...payload, isPending: videoFile.isDeleted}, post.slug);
+        if(Boolean(result.postId) && videoFile.file){
+          console.log("Uploading video file for update")
+          const videokey: string = await uploadVideoFile(setVideoFile, values.videoFile!, result.postId!)
+        }
       } else {
+        // for new post
         result = await addNewPost(payload);
+        if(result.postId){
+           const videokey: string = await uploadVideoFile(setVideoFile, values.videoFile!, result.postId)
+        }
       }
       if (result.success) {
         toast("Post Added Successfully");
@@ -297,15 +328,15 @@ function UploadPostFrom({
         isFromPost: false,
         isDeleted: false,
       });
-      // setVideoFile({
-      //   id: "",
-      //   uploading: false,
-      //   progress: 0,
-      //   isDeleting: false,
-      //   error: false,
-      //   isSubmmited: false,
-      //   isDeleted: false,
-      // });
+      setVideoFile({
+        id: "",
+        uploading: false,
+        progress: 0,
+        isDeleting: false,
+        error: false,
+        isFromPost: false,
+        isDeleted: false,
+      });
       setScreenshotsFile([]);
     }
   };
@@ -321,8 +352,8 @@ function UploadPostFrom({
 
   return (
     <div className="relative">
-      {(loading) && (
-        <div className="absolute w-full flex items-center top-0 right-0 bottom-0 left-0 justify-center bg-background/50 ">
+      {loading && (
+        <div className="absolute w-full flex items-center top-0 right-0 bottom-0 left-0 justify-center bg-background/50 z-10 ">
           <div className=" flex flex-col items-center justify-center gap-3">
             <Loader2 className="size-20 animate-spin " />
             <h1 className="font-bold text-xl md:text-2xl lg:text-3xl">
@@ -669,7 +700,7 @@ function UploadPostFrom({
           />
 
           {/* upload raw video  */}
-          {/* <FormField
+          <FormField
             control={form.control}
             name="videoFile"
             render={() => (
@@ -677,7 +708,7 @@ function UploadPostFrom({
                 <FormLabel>
                   Select Video File :{" "}
                   <span className="text-xs text-muted-foreground">
-                    (Video must be under 200 Mb)
+                    (Video must be under 200mb)
                   </span>{" "}
                 </FormLabel>
                 <FormControl>
@@ -690,7 +721,7 @@ function UploadPostFrom({
                     maxFiles={1}
                     maxSize={200 * 1024 * 1024}
                     accept={{ "video/*": [] }}
-                    disabled={Boolean(videoFile.file)}
+                    disabled={Boolean(videoFile.file) || Boolean(videoFile.key)}
                   >
                     {({ getRootProps, getInputProps, isDragActive }) => (
                       <div
@@ -706,7 +737,9 @@ function UploadPostFrom({
                           <Input
                             {...getInputProps()}
                             type="file"
-                            disabled={Boolean(videoFile.file)}
+                            disabled={
+                              Boolean(videoFile.file) || Boolean(videoFile.key)
+                            }
                           />
                           {isDragActive ? (
                             <p className="text-center">Drop the files here</p>
@@ -722,11 +755,10 @@ function UploadPostFrom({
                   </Dropzone>
                 </FormControl>
 
-                {videoFile.file && (
+                {videoFile.objectUrl && (
                   <div className="mt-2 grid grid-cols-1 mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="relative aspect-video rounded-md overflow-hidden w-full">
-                        
                         <video className="w-full h-full block" controls>
                           <source
                             src={videoFile.objectUrl}
@@ -771,10 +803,10 @@ function UploadPostFrom({
                 <FormMessage />
               </FormItem>
             )}
-          />  */}
+          />
 
           {/* Input video Url  */}
-          <FormField
+          {/* <FormField
             control={form.control}
             name="videoUrl"
             render={({ field }) => (
@@ -796,10 +828,10 @@ function UploadPostFrom({
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
 
           {/* video key  */}
-          <FormField
+          {/* <FormField
             control={form.control}
             name="videoKey"
             render={({ field }) => (
@@ -817,7 +849,7 @@ function UploadPostFrom({
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
 
           {/* Ispublic checkbox input  */}
           <FormField

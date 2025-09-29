@@ -92,6 +92,13 @@
       "when": 1758452101441,
       "tag": "0012_ancient_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1759089666540,
+      "tag": "0013_conscious_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

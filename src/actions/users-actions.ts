@@ -198,13 +198,13 @@ export async function getPosts(currentPage:number, query:string, sortBy:string){
         postTitle: post.title,
         postThumbnail: post.thumbnailUrl,
         createdAt: post.createdAt!,
-        totalCount: sql<number>`count(*) OVER()`, // 👈 gives total rows ignoring limit/offset
+        totalCount: sql<number>`count(*) OVER()`,
       })
       .from(post)
       .where(
         query.length > 0
-          ? sql`to_tsvector('english', ${post.title}) @@ websearch_to_tsquery('english', ${query})`
-          : sql`true` // no filter if query empty
+          ? sql`to_tsvector('english', ${post.title}) @@ websearch_to_tsquery('english', ${query}) AND ${post.isPending} = false`
+          : sql`${post.isPending} = false` // no filter if query empty
       )
       .orderBy(orderBy)
       .limit(postPerPage)
@@ -282,3 +282,4 @@ export async function getPostByCategoryId(categoryId: number, currentPage: numbe
     }
   }
 }
+

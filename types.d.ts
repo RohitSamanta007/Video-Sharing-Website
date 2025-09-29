@@ -20,8 +20,7 @@ type PostFormPayloadProps = {
   thumbnailKey: string;
   screenshotKeys: string[];
   isPublic: boolean | undefined;
-  videoUrl: string;
-  videoKey: string;
+  isPending?:boolean,
 };
 
 interface PostContainerProps {
@@ -75,7 +74,7 @@ interface EditPagePostsProps {
 }
 
 // declare module "video.js" {
-  interface VideoJsPlayerPropsInterface {
-    httpSourceSelector?: (options?: { default?: string }) => void;
-  }
+  // interface VideoJsPlayerPropsInterface {
+  //   httpSourceSelector?: (options?: { default?: string }) => void;
+  // }
 // }
