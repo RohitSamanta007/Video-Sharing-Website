@@ -77,7 +77,7 @@ export const auth = betterAuth({
     useSecureCookies: process.env.NODE_ENV === "production",
     defaultCookieAttributes: {
       httpOnly: true,
-      secure: process.env.KEY === "production",
+      secure: process.env.NODE_ENV === "production",
     },
   },
   plugins: [
