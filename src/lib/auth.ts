@@ -15,11 +15,7 @@ const userRole = "user";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
-  allowedOrigins: [
-    "http://localhost:3000",
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
-    "",
-  ],
+  allowedOrigins: ["*"],
 
   database: drizzleAdapter(db, {
     provider: "pg", // or "mysql", "sqlite"
