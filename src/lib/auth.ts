@@ -15,7 +15,9 @@ const userRole = "user";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: "",
+  baseURL: process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}` // Vercel deployment
+  : "http://localhost:3000",
   allowedOrigins: ["*"],
 
   database: drizzleAdapter(db, {
