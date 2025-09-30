@@ -16,10 +16,10 @@ const userRole = "user";
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   allowedOrigins: [
-  "http://localhost:3000",
-  /\.vercel\.app$/,
-  ""
-],
+    "http://localhost:3000",
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
+    "",
+  ],
 
   database: drizzleAdapter(db, {
     provider: "pg", // or "mysql", "sqlite"
@@ -102,7 +102,6 @@ export const auth = betterAuth({
 
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
-
 
 // for typescript
 // declare module "better-auth" {
