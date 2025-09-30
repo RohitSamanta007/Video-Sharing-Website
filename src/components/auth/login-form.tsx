@@ -102,7 +102,7 @@ function LoingForm() {
       }
     } catch (error) {
       console.log("Error in Register From : ", error);
-      toast.error("Error in Restration! Plase try again sometine later");
+      toast.error(`Error in Restration! Plase try again sometine later : ${error} `);
     } finally {
       setIsLoading(false);
     }
