@@ -146,7 +146,7 @@ export async function uploadThumbnailFile(
       };
 
       xhr.open("PUT", presignedUrl);
-      xhr.setRequestHeader("Content-Type", file.type);
+      // xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
     });
 
