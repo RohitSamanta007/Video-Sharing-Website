@@ -28,12 +28,13 @@ export async function POST(request: Request) {
     }
 
     const { key, contentType, size } = validation.data;
+    console.log("The value of the content type is : ", contentType)
 
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME,
       Key: key,
       ContentType: contentType || "application/octet-stream",
-      //   ContentLength: size,
+        ContentLength: size,
     });
 
     const presignedUrl = await getSignedUrl(s3, command, {
