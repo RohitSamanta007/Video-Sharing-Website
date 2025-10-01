@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+
 
 import { NextResponse } from "next/server";
 import z from "zod";
@@ -12,6 +12,8 @@ const uploadedRequestSchema = z.object({
   contentType: z.string(),
   size: z.number(),
 });
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -30,8 +32,8 @@ export async function POST(request: Request) {
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME,
       Key: key,
-      ContentType: contentType,
-    //   ContentLength: size,
+      ContentType: contentType || "application/octet-stream",
+      //   ContentLength: size,
     });
 
     const presignedUrl = await getSignedUrl(s3, command, {
