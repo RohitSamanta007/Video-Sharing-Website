@@ -155,7 +155,29 @@ export async function uploadVideoFile(
       xhr.send(file);
     });
 
+    
+    // run aws ecs task for video trancoding
+    const ecsResponse = await fetch("/api/start-transcode", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({key})
+    })
+
+    if(!ecsResponse.ok){
+      console.log("Error in Ecs video transcoding : ", );
+      return;
+    }
+
+    const ecsResponseResult = await ecsResponse.json();
+    if(ecsResponseResult.success){
+      toast.success(ecsResponseResult.message)
+    }
+    else{
+      toast.error(ecsResponseResult.error)
+    }
+
     return key;
+    
   } catch (error) {
     console.log("Error in upload file : ", error);
     toast.error("Something went wrong");

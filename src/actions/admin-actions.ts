@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getPostBySlug } from "./users-actions";
 import { deleteAwsFiles, deleteAwsFolder } from "@/config/aws-config";
+import { RunTaskCommand } from "@aws-sdk/client-ecs";
 
 export async function getServerSession() {
   const session = await auth.api.getSession({
@@ -509,3 +510,4 @@ export async function getAllPendingPosts() {
     }
   }
 }
+
